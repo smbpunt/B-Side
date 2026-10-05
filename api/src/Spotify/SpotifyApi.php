@@ -60,11 +60,18 @@ class SpotifyApi
     /**
      * Playlists de la bibliothèque : créées, collaboratives ou suivies.
      *
+     * Spotify répète parfois une playlist d'une page à la suivante (et la compte deux fois dans `total`) : chaque id n'est gardé qu'une fois.
+     *
      * @return list<Playlist>
      */
     public function getPlaylists(User $user): array
     {
-        return array_map(Playlist::fromApi(...), $this->getAllPages($user, 'me/playlists'));
+        $playlists = [];
+        foreach ($this->getAllPages($user, 'me/playlists') as $data) {
+            $playlists[$data['id']] ??= Playlist::fromApi($data);
+        }
+
+        return array_values($playlists);
     }
 
     /**

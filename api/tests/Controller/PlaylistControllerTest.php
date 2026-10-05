@@ -46,6 +46,9 @@ class PlaylistControllerTest extends WebTestCase
     /** @var array<string, string> snapshot_id de chaque playlist sur Spotify */
     private array $snapshots = ['road-trip' => 'v1', 'mix' => 'v1', 'discover' => 'v1', 'collab' => 'v1'];
 
+    /** @var list<string> playlists que Spotify liste deux fois, comme d'une page à la suivante */
+    private array $listedTwice = [];
+
     /** @var list<array<string, mixed>>|null titres likés sur Spotify, du plus récent au plus ancien, null si refusés */
     private ?array $likes;
 
@@ -291,6 +294,14 @@ class PlaylistControllerTest extends WebTestCase
         unset($this->snapshots['road-trip']);
         self::assertSame(3, $this->sync(), 'La liste, le contenu de Mix seulement, et la première page des likes');
         self::assertSame(['Mix', 'Titres likés'], array_column($this->get('/api/playlists'), 'name'));
+    }
+
+    public function testPlaylistListedTwiceBySpotify(): void
+    {
+        $this->listedTwice = ['mix'];
+        $this->sync();
+
+        self::assertSame(['Mix', 'Road trip', 'Titres likés'], array_column($this->get('/api/playlists'), 'name'));
     }
 
     public function testLikedTracksAreOnlyReadAgainWhenTheyChange(): void
@@ -612,7 +623,7 @@ class PlaylistControllerTest extends WebTestCase
                 'collaborative' => 'collab' === $id,
                 'snapshot_id' => $this->snapshots[$id],
                 'images' => [],
-            ], array_keys($this->snapshots))),
+            ], [...array_keys($this->snapshots), ...$this->listedTwice])),
             'https://api.spotify.com/v1/playlists/road-trip/items' => $this->page($url, [
                 $this->item(self::SONG_B, 'Song B', 'Artist B', '2026-01-01T10:00:00Z'),
                 $this->item(self::SONG_C, 'Song C', 'Artist C', '2026-02-01T10:00:00Z'),
