@@ -20,6 +20,7 @@ include make/symfony.mk
 include make/quality.mk
 include make/ci.mk
 include make/front.mk
+include make/release.mk
 
 # --- Help ---
 .PHONY: help

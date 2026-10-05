@@ -53,7 +53,7 @@ Then `compose.yaml`, in the same folder, nothing to change:
 ```yaml
 services:
   b-side:
-    image: smbpunt/b-side-php-prod:latest
+    image: smbpunt/b-side-php-prod:main
     container_name: b-side
     env_file: bside.env
     volumes:
@@ -69,7 +69,7 @@ services:
 
   # Background Spotify sync
   b-side-worker:
-    image: smbpunt/b-side-php-prod:latest
+    image: smbpunt/b-side-php-prod:main
     container_name: b-side-worker
     command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=128M
     env_file: bside.env
@@ -93,6 +93,8 @@ services:
 ```
 
 Then `docker compose up -d` from `bside/` and open `https://<SERVER_NAME>`.
+
+`main` follows the `main` branch. No version has been released yet, so there is no `latest` tag: it will point to the last release once there is one.
 
 In the Spotify app (see [Installation](#installation)), the redirect URIs use the same address: `https://<SERVER_NAME>/api/auth/callback` and `https://<SERVER_NAME>/api/accounts/link/callback`.
 
@@ -175,6 +177,7 @@ docker compose cp php:/data/caddy/pki/authorities/local/root.crt /tmp/caddy-root
 - `make db-test` (once) then `make phpunit`: backend tests
 - `make front-test`: front tests (Vitest)
 - `make ci`: run everything
+- `make release v=1.2.3`: tag the version; CI then tests and publishes the Docker Hub image (`1.2.3` and `latest`)
 
 ## Structure
 
