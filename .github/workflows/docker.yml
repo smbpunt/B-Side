@@ -3,33 +3,65 @@ name: Docker
 on:
   push:
     tags: ['v*']
+  # Bouton « Run workflow » de l'onglet Actions. Avec une version : publie vX.Y.Z (tests, tag, image).
+  # Sans version : image de la branche (`:main`), pas de tag.
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version à publier, ex. 1.2.3 ou 1.2.3-rc.1 (vide = image de la branche)'
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  # Mêmes vérifications que `make ci` en local, dans les conteneurs de dev
-  tests:
+  # Vérifie la version avant les ~30 min de tests
+  check:
+    if: inputs.version != ''
     runs-on: ubuntu-latest
     env:
-      # Pas de terminal en CI : `exec -T`
-      EXEC_PHP: docker compose exec -T php
-      EXEC_FRONT: docker compose exec -T front
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Format X.Y.Z ou X.Y.Z-rc.N
+        run: '[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]] || { echo "::error::Version invalide : $VERSION"; exit 1; }'
+      - name: Depuis main
+        run: '[[ "$GITHUB_REF" == refs/heads/main ]] || { echo "::error::Une version se publie depuis main"; exit 1; }'
+      - name: Tag absent
+        run: |
+          if git ls-remote --exit-code --tags "https://github.com/$GITHUB_REPOSITORY" "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Le tag v$VERSION existe déjà"; exit 1
+          fi
+
+  # Mêmes tests que sur les PR (ci.yml)
+  tests:
+    needs: check
+    # `check` est sauté hors bouton avec version : les tests tournent quand même
+    if: ${{ !failure() && !cancelled() }}
+    uses: ./.github/workflows/ci.yml
+
+  # Le tag n'est créé qu'une fois les tests passés. Poussé avec GITHUB_TOKEN, il ne relance pas
+  # ce workflow : l'image est publiée par le job suivant, dans le même run.
+  tag:
+    needs: [check, tests]
+    if: inputs.version != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
     steps:
       - uses: actions/checkout@v4
-
-      - run: make build
-      - run: make up
-      - run: make db-test
-      - run: make ci
-      - run: make front-test
-
-      - if: failure()
-        run: docker compose logs
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "v$VERSION" -m "v$VERSION"
+          git push origin "v$VERSION"
 
   image:
-    needs: tests
+    needs: [tests, tag]
+    # `tag` est sauté hors bouton avec version
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,14 +75,15 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # `latest` n'est ajouté que sur une version finale (v1.2.3, pas v1.2.3-rc.1).
-      # Lancé à la main, l'image porte le nom de la branche.
+      # Lancé à la main sans version, l'image porte le nom de la branche.
       - id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ vars.DOCKERHUB_USERNAME }}/b-side-php-prod
           tags: |
             type=semver,pattern={{version}}
-            type=ref,event=branch
+            type=semver,pattern={{version}},value=v${{ inputs.version }},enable=${{ inputs.version != '' }}
+            type=ref,event=branch,enable=${{ inputs.version == '' }}
 
       # Même image que compose.prod.yaml : l'API et le front Angular compilé
       - uses: docker/build-push-action@v6

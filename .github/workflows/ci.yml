@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Réutilisé par docker.yml avant de publier l'image
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Un nouveau push sur la même branche annule le run en cours
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # Mêmes vérifications que `make ci` en local, dans les conteneurs de dev
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      # Pas de terminal en CI : `exec -T`
+      EXEC_PHP: docker compose exec -T php
+      EXEC_FRONT: docker compose exec -T front
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: make build
+      - run: make up
+      - run: make db-test
+      - run: make ci
+      - run: make front-test
+
+      - if: failure()
+        run: docker compose logs

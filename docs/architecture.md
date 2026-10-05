@@ -129,9 +129,15 @@ APP_SECRET=… SPOTIFY_CLIENT_ID=… SPOTIFY_CLIENT_SECRET=… \
 
 L'étape `front_builder` du `api/Dockerfile` compile Angular à partir du contexte de build nommé `front` (`additional_contexts` dans `compose.prod.yaml`), puis le résultat est copié dans l'image FrankenPHP finale.
 
+### Intégration continue
+
+`.github/workflows/ci.yml` lance `make ci` et `make front-test` sur chaque PR et chaque push sur `main`. `docker.yml` réutilise ce workflow avant de publier l'image.
+
 ### Publication sur Docker Hub
 
 Un tag `v*` lance `.github/workflows/docker.yml` : `make ci` et `make front-test`, puis l'image `b-side-php-prod` (amd64 et arm64) est publiée sur Docker Hub. `latest` ne suit que les versions finales (`v1.2.3`, pas `v1.2.3-rc.1`).
+
+Autre façon de publier : onglet Actions, workflow « Docker », « Run workflow » avec une version. Le run vérifie la version (format, depuis `main`, tag absent), lance les tests, crée le tag puis publie l'image. Sans version, il publie l'image de la branche (`:main`).
 
 À configurer dans le dépôt GitHub : la variable `DOCKERHUB_USERNAME` et le secret `DOCKERHUB_TOKEN`.
 
