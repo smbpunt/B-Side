@@ -20,6 +20,12 @@ security:
             logout:
                 path: api_auth_logout
                 target: /
+            # « Se souvenir de moi » : activé par SpotifyAuthenticator, reconduit à chaque reconnexion par cookie
+            remember_me:
+                secret: '%kernel.secret%'
+                lifetime: 2592000 # 30 jours
+                # Pas de mot de passe à signer (défaut) : le cookie n'est invalidé que par sa date ou la déconnexion
+                signature_properties: [spotifyId]
 
     # Note: Only the *first* matching rule is applied
     access_control:

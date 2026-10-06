@@ -5,6 +5,7 @@ namespace App\Tests\Controller;
 use App\Entity\User;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class AuthControllerTest extends WebTestCase
@@ -41,6 +42,27 @@ class AuthControllerTest extends WebTestCase
         self::assertJsonStringEqualsJsonString('{"id":"me","displayName":"Jane Doe","avatarUrl":null}', (string) $client->getResponse()->getContent());
     }
 
+    public function testRememberMeKeepsTheUserLoggedInOnceTheSessionIsGone(): void
+    {
+        $client = $this->logInThroughSpotify(remember: true);
+        $rememberMe = $client->getCookieJar()->get('REMEMBERME');
+        self::assertNotNull($rememberMe);
+
+        // Session expirée : seul le cookie remember_me reste
+        $client->getCookieJar()->clear();
+        $client->getCookieJar()->set($rememberMe);
+        $client->request('GET', '/api/me');
+
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testNoRememberMeCookieUnlessAsked(): void
+    {
+        $client = $this->logInThroughSpotify(remember: false);
+
+        self::assertNull($client->getCookieJar()->get('REMEMBERME'));
+    }
+
     public function testApiRequiresAuthentication(): void
     {
         $client = static::createClient();
@@ -48,5 +70,20 @@ class AuthControllerTest extends WebTestCase
 
         self::assertResponseStatusCodeSame(401);
         self::assertJsonStringEqualsJsonString('{"error":"unauthenticated"}', (string) $client->getResponse()->getContent());
+    }
+
+    private function logInThroughSpotify(bool $remember): KernelBrowser
+    {
+        $client = static::createClient();
+        $client->disableReboot();
+        static::getContainer()->get(EntityManagerInterface::class)->createQuery('DELETE FROM ' . User::class)->execute();
+
+        $client->request('GET', '/api/auth/login', $remember ? ['remember' => '1'] : []);
+        parse_str((string) parse_url((string) $client->getResponse()->headers->get('Location'), \PHP_URL_QUERY), $query);
+        $this->mockSpotifyOAuth('spotify', 'me', 'Jane Doe');
+        $client->request('GET', '/api/auth/callback', ['code' => 'code', 'state' => $query['state']]);
+        self::assertResponseRedirects('/');
+
+        return $client;
     }
 }

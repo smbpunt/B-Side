@@ -22,8 +22,9 @@ export class AuthService {
     );
   }
 
-  login(): void {
-    window.location.assign('/api/auth/login');
+  /** `remember` : cookie de 30 jours, sinon la session s'arrête après 1 h d'inactivité ou à la fermeture du navigateur. */
+  login(remember = false): void {
+    window.location.assign(remember ? '/api/auth/login?remember=1' : '/api/auth/login');
   }
 
   logout(): void {

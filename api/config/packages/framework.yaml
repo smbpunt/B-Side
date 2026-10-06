@@ -6,6 +6,8 @@ framework:
     # En base et sans verrou : voir services.yaml
     session:
         handler_id: Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler
+        # Expire après 1 h sans requête (24 min par défaut). Au-delà : cookie remember_me, voir security.yaml
+        gc_maxlifetime: 3600
 
     #esi: true
     #fragments: true
