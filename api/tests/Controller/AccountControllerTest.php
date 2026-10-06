@@ -78,7 +78,7 @@ class AccountControllerTest extends WebTestCase
 
     public function testCallbackWithAnExpiredSessionGoesToLogin(): void
     {
-        $this->client->request('GET', '/api/auth/logout');
+        $this->client->request('POST', '/api/auth/logout');
         $this->client->request('GET', '/api/accounts/link/callback', ['code' => 'code', 'state' => 'state']);
 
         self::assertResponseRedirects('/login');
@@ -109,7 +109,7 @@ class AccountControllerTest extends WebTestCase
 
     public function testLinkRequiresASession(): void
     {
-        $this->client->request('GET', '/api/auth/logout');
+        $this->client->request('POST', '/api/auth/logout');
         $this->client->request('GET', '/api/accounts/link');
 
         self::assertResponseStatusCodeSame(401);

@@ -33,9 +33,10 @@ class AuthController extends AbstractController
     }
 
     /**
-     * Intercepté par le firewall (logout).
+     * Intercepté par le firewall (logout). POST : avec les cookies en SameSite=Lax, un lien ou une image
+     * sur un autre site ne peut pas déconnecter l'utilisateur.
      */
-    #[Route('/logout', name: 'logout', methods: ['GET'])]
+    #[Route('/logout', name: 'logout', methods: ['POST'])]
     public function logout(): never
     {
         throw new \LogicException('Handled by the security firewall.');

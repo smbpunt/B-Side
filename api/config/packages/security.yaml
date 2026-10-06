@@ -24,8 +24,10 @@ security:
             remember_me:
                 secret: '%kernel.secret%'
                 lifetime: 2592000 # 30 jours
-                # Pas de mot de passe à signer (défaut) : le cookie n'est invalidé que par sa date ou la déconnexion
-                signature_properties: [spotifyId]
+                # Jetons en base (table rememberme_token) : la déconnexion supprime le jeton côté serveur,
+                # et un cookie volé puis réutilisé est détecté (tous les jetons de la série sont supprimés)
+                token_provider:
+                    doctrine: true
 
     # Note: Only the *first* matching rule is applied
     access_control:

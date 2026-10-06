@@ -7,6 +7,7 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\BrowserKit\Cookie;
 
 class AuthControllerTest extends WebTestCase
 {
@@ -54,6 +55,44 @@ class AuthControllerTest extends WebTestCase
         $client->request('GET', '/api/me');
 
         self::assertResponseIsSuccessful();
+    }
+
+    public function testLogoutRevokesTheRememberMeCookieServerSide(): void
+    {
+        $client = $this->logInThroughSpotify(remember: true);
+        $rememberMe = $client->getCookieJar()->get('REMEMBERME');
+        self::assertNotNull($rememberMe);
+
+        $client->request('POST', '/api/auth/logout');
+        self::assertResponseRedirects('/');
+
+        // Copie du cookie gardée ailleurs (vol, autre appareil) : le jeton n'existe plus en base
+        $client->getCookieJar()->clear();
+        $client->getCookieJar()->set($rememberMe);
+        $client->request('GET', '/api/me');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testTamperedRememberMeCookieIsRejected(): void
+    {
+        $client = $this->logInThroughSpotify(remember: true);
+        $rememberMe = $client->getCookieJar()->get('REMEMBERME');
+        self::assertNotNull($rememberMe);
+
+        $client->getCookieJar()->clear();
+        $client->getCookieJar()->set(new Cookie('REMEMBERME', $rememberMe->getValue() . 'x', null, '/', $rememberMe->getDomain()));
+        $client->request('GET', '/api/me');
+
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testLogoutRefusesGet(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/api/auth/logout');
+
+        self::assertResponseStatusCodeSame(405);
     }
 
     public function testNoRememberMeCookieUnlessAsked(): void

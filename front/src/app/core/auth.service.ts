@@ -27,7 +27,12 @@ export class AuthService {
     window.location.assign(remember ? '/api/auth/login?remember=1' : '/api/auth/login');
   }
 
+  /** POST via un formulaire : l'API n'accepte plus la déconnexion en GET, et Symfony redirige ensuite vers `/`. */
   logout(): void {
-    window.location.assign('/api/auth/logout');
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = '/api/auth/logout';
+    document.body.append(form);
+    form.submit();
   }
 }
