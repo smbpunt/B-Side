@@ -71,7 +71,7 @@ services:
   b-side-worker:
     image: smbpunt/b-side-php-prod:latest
     container_name: b-side-worker
-    command: php bin/console messenger:consume async --time-limit=3600 --memory-limit=128M
+    command: php bin/console messenger:consume async --memory-limit=128M
     env_file: bside.env
     depends_on:
       b-side:
