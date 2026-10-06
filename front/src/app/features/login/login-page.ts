@@ -14,7 +14,20 @@ import { AuthService } from '../../core/auth.service';
   // Retour arrière depuis Spotify : la page revient du cache navigateur avec le bouton encore bloqué.
   host: { '(window:pageshow)': 'connecting.set(false)' },
   template: `
-    <main class="grid min-h-dvh place-items-center bg-[radial-gradient(ellipse_at_top,var(--color-emerald-950),transparent_60%)] p-4">
+    <main
+      class="isolate grid min-h-dvh place-items-center overflow-hidden bg-[radial-gradient(ellipse_at_top,var(--color-emerald-950),transparent_60%)] p-4"
+    >
+      <!-- Égaliseur en filigrane, en bas de l'écran -->
+      <div class="eq pointer-events-none absolute inset-x-0 bottom-0 -z-10 flex h-[35vh] items-end justify-evenly" aria-hidden="true">
+        @for (bar of bars; track $index) {
+          <span
+            class="w-1 rounded-full bg-[#1db954]/20"
+            [style.height.%]="bar.height"
+            [style.animation-duration.s]="bar.duration"
+            [style.animation-delay.s]="bar.delay"
+          ></span>
+        }
+      </div>
       <section
         hlmCard
         class="w-full max-w-md text-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 motion-safe:duration-500"
@@ -108,6 +121,20 @@ import { AuthService } from '../../core/auth.service';
       }
     }
 
+    /* Égaliseur de fond : s'efface vers le haut pour ne pas passer sous la carte. */
+    .eq {
+      mask-image: linear-gradient(to top, black, transparent);
+    }
+    .eq span {
+      transform-origin: bottom;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .eq span {
+        animation: equalize ease-in-out infinite alternate;
+      }
+    }
+
     @keyframes equalize {
       from {
         transform: scaleY(0.35);
@@ -122,6 +149,13 @@ export class LoginPage {
   protected readonly auth = inject(AuthService);
   protected readonly remember = signal(false);
   protected readonly connecting = signal(false);
+
+  /** Hauteurs et rythmes variés mais fixes, pour que le fond soit le même à chaque visite. */
+  protected readonly bars = Array.from({ length: 32 }, (_, i) => ({
+    height: 30 + Math.round(70 * Math.abs(Math.sin(i * 2.3))),
+    duration: 1.4 + ((i * 7) % 10) / 10,
+    delay: -((i * 3) % 10) / 10,
+  }));
 
   /** Query param ajouté par Symfony quand l'OAuth échoue. */
   readonly authError = input<string>(undefined, { alias: 'auth_error' });
